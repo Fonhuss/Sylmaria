@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="da">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sortskærerne – Rejsetider (Leaflet)</title>
+<title>Avaris – Rejsetider (Leaflet)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   html, body { height: 100%; margin: 0; }
@@ -12,7 +11,7 @@
   .panel {
     position: absolute; top: 10px; left: 10px; z-index: 1000;
     background: rgba(255,255,255,0.95); padding: 10px 12px; border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15); font-family: system-ui, Segoe UI, Roboto, sans-serif; max-width: 320px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15); font-family: system-ui, Segoe UI, Roboto, sans-serif; max-width: 340px;
   }
   .panel h3 { margin: 0 0 8px; font-size: 16px; }
   .panel .row { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
@@ -27,7 +26,7 @@
 </head>
 <body>
 <div class="panel">
-  <h3>Rejsetidsberegner</h3>
+  <h3>Rejsetidsberegner – Avaris</h3>
   <div class="row">
     <label>Rejsetype</label>
     <select id="mode">
@@ -38,7 +37,7 @@
     </select>
   </div>
   <div class="row">
-    <label>Skala</label>
+    <label>Skala (km/pixel)</label>
     <input type="number" id="kmPerPixel" step="0.001" value="0.20" />
   </div>
   <div class="row">
@@ -48,31 +47,36 @@
   <div class="stats" id="stats">
     <span class="pill">Tip</span> Klik to steder på kortet for at måle.
   </div>
-  <div class="hint">Justér “Skala (km/pixel)” så målinger passer til dine kendte afstande (fx Aurora ↔ Glen Céledach = 283 km).</div>
+  <div class="hint">Justér “Skala (km/pixel)” så målinger passer til dine kendte afstande (fx Auriane ↔ Glen Céledach = 283 km).</div>
 </div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (async function() {
-  // Image size (we need to know width/height). We'll load the image to get dimensions.
-  const imgUrl = "map_avaris.png"; // the image will be next to the HTML in the sandbox path we save
-  function loadImage(url){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; }); }
+  const imgUrl = "map_avaris.png"; // Billedfil i samme mappe
+
+  function loadImage(url){ 
+    return new Promise((res,rej)=>{ 
+      const i=new Image(); 
+      i.onload=()=>res(i); 
+      i.onerror=rej; 
+      i.src=url; 
+    }); 
+  }
   const img = await loadImage(imgUrl);
   const w = img.naturalWidth, h = img.naturalHeight;
 
-  // Leaflet map with simple CRS
   const map = L.map('map', {
     crs: L.CRS.Simple,
-    minZoom: -1,
-    maxZoom: 2,
+    minZoom: -2,
+    maxZoom: 4,
     attributionControl: false
   });
   const bounds = [[0,0], [h, w]];
-  const image = L.imageOverlay(imgUrl, bounds).addTo(map);
+  L.imageOverlay(imgUrl, bounds).addTo(map);
   map.fitBounds(bounds);
 
-  // State
   let points = [];
   let lineLayer = null;
 
@@ -88,21 +92,15 @@
   };
 
   function fmtDays(d) {
-    // show decimal with comma
     const exact = (Math.round(d*100)/100).toFixed(2).replace('.', ',');
-    // round to nearest 0.5
     const half = Math.round(d*2)/2;
-    // 1.5 -> 1½ otherwise use 'næsten X' if >= .65
     let approx;
     if (Math.abs(half - 1.5) < 0.001) approx = "1½ dage";
     else if (Math.abs(half - Math.round(half)) < 0.001) approx = `${half.toFixed(0)} dage`;
     else approx = `${half.toFixed(1).replace('.0','').replace('.',',')} dage`;
-    // 'næsten' logic
-    const nearIntUp = Math.ceil(d);
     const frac = d - Math.floor(d);
-    let qual = approx;
-    if (frac >= 0.65) qual = `næsten ${nearIntUp} dage`;
-    return { exact, qual };
+    if (frac >= 0.65) approx = `næsten ${Math.ceil(d)} dage`;
+    return { exact, qual: approx };
   }
 
   function updateStats() {
@@ -172,19 +170,6 @@
       alert(text);
     }
   });
-
-  // Draw a scale helper line with two draggable markers to calibrate km/pixel if desired.
-  const m1 = L.marker([h-80, 40], {draggable:true}).addTo(map);
-  const m2 = L.marker([h-80, 240], {draggable:true}).addTo(map);
-  const helper = L.polyline([m1.getLatLng(), m2.getLatLng()], {dashArray:"4 4"}).addTo(map);
-  function updateHelper(){
-    helper.setLatLngs([m1.getLatLng(), m2.getLatLng()]);
-    const p1 = m1.getLatLng(), p2=m2.getLatLng();
-    const dx=(p2.lng-p1.lng), dy=(p2.lat-p1.lat);
-    const px = Math.sqrt(dx*dx + dy*dy);
-    helper.bindTooltip(`Kalibrering: ${px.toFixed(0)} px`, {permanent:true, direction:'top'}).openTooltip();
-  }
-  m1.on('drag', updateHelper); m2.on('drag', updateHelper); updateHelper();
 })();
 </script>
 </body>
