@@ -3,131 +3,294 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sylmaria – Kort</title>
+  <title>Sylmaria – Kort (editor‑værktøj)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <style>
-    :root{ --bg:#0b0d13; --text:#e6eaf2; --muted:#8a94a6; --accent:#e2b714 }
+    :root{ --bg:#0b0d13; --panel:#11141b; --text:#e6eaf2; --muted:#8a94a6; --accent:#e2b714; --ring:0 0 0 2px rgba(226,183,20,.25), 0 0 0 6px rgba(226,183,20,.08) }
+    *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0; font-family:Inter,system-ui; background:var(--bg); color:var(--text)}
+    body{margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:var(--bg); color:var(--text)}
     header{position:sticky; top:0; z-index:10; backdrop-filter:blur(8px); background:linear-gradient(180deg, rgba(11,13,19,.85), rgba(11,13,19,.55)); border-bottom:1px solid rgba(255,255,255,.06)}
     .bar{max-width:1200px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; gap:12px}
-    .bar a{margin-left:auto; color:var(--text); text-decoration:none; padding:8px 12px; border:1px solid rgba(255,255,255,.1); border-radius:10px; background:#0f131c}
-    #map{height:calc(100dvh - 60px)}
-    .panel{ position:absolute; left:12px; top:76px; z-index:500; background:rgba(17,20,27,.92); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 12px; min-width:260px }
+    .brand{display:flex; align-items:center; gap:10px; font-family:Cinzel, serif}
+    .sigil{width:24px; height:24px; border-radius:7px; background:conic-gradient(from 220deg,#ffed9a,#ffd86b,#b88a12,#3a2a00,#ffed9a)}
+    .brand b{letter-spacing:.5px}
+    .bar a.btn{margin-left:auto; display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.1); text-decoration:none; color:var(--text); background:#0f131c}
+    .bar a.btn:hover{box-shadow:var(--ring); border-color:#3d2d00}
+
+    #map{ height: calc(100dvh - 60px); }
+
+    /* Panel/legend */
+    .panel{ position:absolute; left:12px; top:76px; z-index:500; background:rgba(17,20,27,.92); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px; color:var(--text); backdrop-filter:blur(8px); min-width:280px }
     .panel h3{ margin:0 0 8px; font-family:Cinzel,serif; font-size:16px }
-    .panel label{ font-size:12px; color:var(--muted) }
-    .panel select{ width:100%; background:#0f131c; color:var(--text); border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:8px }
+    .row{ display:flex; gap:8px; align-items:center; margin-bottom:8px }
+    label{font-size:12px; color:var(--muted)}
+    select, button, input[type="checkbox"]{ accent-color:#e2b714 }
+    select{ flex:1; background:#0f131c; color:var(--text); border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:8px }
+    .btn-sm{ padding:6px 10px; border-radius:8px; background:#0f131c; border:1px solid rgba(255,255,255,.12); color:var(--text); cursor:pointer }
+    .btn-sm:hover{ box-shadow:var(--ring); border-color:#3d2d00 }
+
     .small{color:var(--muted); font-size:12px; margin-top:8px}
+
+    .leaflet-container{ font: 14px/1.4 Inter, system-ui, -apple-system, Segoe UI }
+    .leaflet-control-layers-expanded{ background:rgba(17,20,27,.92); color:var(--text); border-color:rgba(255,255,255,.08) }
+    .leaflet-popup-content-wrapper{ background:#0f131c; color:var(--text); border:1px solid rgba(255,255,255,.08) }
+    .leaflet-popup-tip{ background:#0f131c }
+
     .leaflet-tooltip.city-label{background:transparent; border:0; box-shadow:none; color:#ffefb3; font-family:Cinzel,serif; font-weight:700; letter-spacing:.02em; text-shadow:0 1px 2px rgba(0,0,0,.7)}
+
+    /* HUD nederst til højre */
+    #hud{ position:absolute; right:12px; bottom:12px; z-index:600; background:rgba(17,20,27,.92); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:8px 10px; font-size:12px; color:#cfd6e6 }
+    #hud b{ color:#fff }
+
+    /* Snippet felt */
+    #snippet{ position:absolute; left:12px; bottom:12px; z-index:600; background:rgba(17,20,27,.96); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:8px 10px; max-width:min(720px, 95vw); color:#cfd6e6; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px }
+    #snippet pre{ margin:6px 0 0; white-space:pre-wrap; word-break:break-word }
   </style>
 </head>
 <body>
   <header>
     <div class="bar">
-      <strong style="font-family:Cinzel,serif;letter-spacing:.4px">Sylmaria – Kort</strong>
-      <a href="./">← Til forsiden</a>
+      <div class="brand"><div class="sigil" aria-hidden="true"></div><b>Sylmaria – Kort</b></div>
+      <a class="btn" href="./">← Til forsiden</a>
     </div>
   </header>
 
   <div id="map"></div>
+
   <div class="panel">
     <h3>Lag & kort</h3>
-    <label for="region">Vælg kort:</label>
-    <select id="region">
-      <option value="avaris" selected>Avaris</option>
-      <option value="elyria">Elyria</option>
-      <option value="nyvarin">Nyvarin</option>
-      <option value="thandoril">Thandoril</option>
-      <option value="valtherion">Valtherion</option>
-    </select>
-    <div class="small">Avaris bruger <code>assets/avaris-map.png</code>. Hvert kort kan få egne ruter/POIs.</div>
+    <div class="row">
+      <label for="region" style="min-width:74px">Vælg kort:</label>
+      <select id="region">
+        <option value="avaris" selected>Avaris</option>
+        <option value="elyria">Elyria</option>
+        <option value="nyvarin">Nyvarin</option>
+        <option value="thandoril">Thandoril</option>
+        <option value="valtherion">Valtherion</option>
+      </select>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="editToggle"> Redigér‑tilstand</label>
+      <button class="btn-sm" id="gridToggle" style="margin-left:auto">Vis gitter</button>
+    </div>
+    <div class="row">
+      <button class="btn-sm" id="startRoute">Ny rute</button>
+      <button class="btn-sm" id="finishRoute" disabled>Afslut</button>
+      <button class="btn-sm" id="cancelRoute" disabled>Annuller</button>
+    </div>
+    <div class="small">Avaris bruger <code>assets/avaris-map.png</code>. I redigér‑tilstand: 
+      <ul style="margin:.4em 0 .2em .9em; padding:0">
+        <li>Højreklik for at oprette <b>by</b> (etiket).</li>
+        <li>Klik på kortet for at <b>kopiere P(x,y)</b> til udklipsholder.</li>
+        <li>“Ny rute”: klik punkter, <i>Afslut</i> for snippet.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="hud">x: <b id="xv">–</b> • y: <b id="yv">–</b></div>
+  <div id="snippet" style="display:none">
+    <b>Kodesnippet</b> <button class="btn-sm" id="copySnippet" style="float:right">Kopiér</button>
+    <pre id="snippetPre"></pre>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
-    // --- Kortkonfiguration (billederne ligger i /assets) ---
+    // --- KONFIG af dine kort ---
     const MAPS = {
-      avaris:    { title:'Avaris',    img:'assets/avaris-map.png', features:(w,h,P,makeCity)=>({
-        cities:[ makeCity(.40,.58,'Avaris','capital','kontinenter/avaris.html#avaris','Hovedstad.'),
-                 makeCity(.28,.64,'Port Lys','city','','Handelsby ved bugten.'),
-                 makeCity(.33,.58,'Stormwatch','town','','Grænsepost i bjergene.') ],
-        pois:[ L.marker(P(.32,.58)).bindPopup('<b>Tharvienne</b>') ],
-        routes:[ L.polyline([P(.18,.72),P(.26,.66),P(.33,.60),P(.37,.57),P(.41,.55)], {color:'#e2b714',weight:3}).bindPopup('<b>Avaris-passagen</b>') ],
-        secrets:[ L.circle(P(.44,.62), {radius:20, color:'#ff6b6b', weight:2, fillColor:'#ff6b6b', fillOpacity:.25}).bindPopup('<b>Skjult indgang</b>') ]
-      })},
-      elyria:    { title:'Elyria',    img:'assets/elyria.png',     features:(w,h,P,makeCity)=>({cities:[],pois:[],routes:[],secrets:[]}) },
-      nyvarin:   { title:'Nyvarin',   img:'assets/nyvarin.png',    features:(w,h,P,makeCity)=>({cities:[],pois:[],routes:[],secrets:[]}) },
-      thandoril: { title:'Thandoril', img:'assets/thandoril.png',  features:(w,h,P,makeCity)=>({cities:[],pois:[],routes:[],secrets:[]}) },
-      valtherion:{ title:'Valtherion',img:'assets/valtherion.png', features:(w,h,P,makeCity)=>({cities:[],pois:[],routes:[],secrets:[]}) },
+      avaris: { title: 'Avaris', img: 'assets/avaris-map.png',
+        features: (w,h,P,makeCity) => ({
+          cities: [
+            makeCity(.40,.58,'Avaris','capital','kontinenter/avaris.html#avaris','Hovedstad.'),
+            makeCity(.28,.64,'Port Lys','city','','Handelsby ved bugten.'),
+            makeCity(.55,.36,'Stormwatch','town','','Grænsepost i bjergene.')
+          ],
+          pois: [
+            L.marker(P(.32,.58)).bindPopup('<b>Fyrtårnet ved Avaris</b><br/>Et landemærke ved kysten.')
+          ],
+          routes: [
+            L.polyline([P(.18,.72), P(.26,.66), P(.33,.60), P(.37,.57), P(.41,.55)], { color:'#e2b714', weight:3, opacity:.95 })
+              .bindPopup('<b>Avaris‑passagen</b><br/>Let terræn, god for nybegyndere.'),
+          ],
+          secrets: [
+            L.circle(P(.44,.62), {radius: 20, color:'#ff6b6b', weight:2, fillColor:'#ff6b6b', fillOpacity:.25})
+              .bindPopup('<b>Skjult indgang</b><br/>Kun for indviede.')
+          ]
+        })
+      },
+      elyria: { title: 'Elyria', img: 'assets/elyria.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
+      nyvarin: { title: 'Nyvarin', img: 'assets/nyvarin.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
+      thandoril: { title: 'Thandoril', img: 'assets/thandoril.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
+      valtherion: { title: 'Valtherion', img: 'assets/valtherion.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
     };
 
-    // Leaflet map + lag
+    // --- Leaflet init (CRS.Simple) ---
     let map = L.map('map', { crs: L.CRS.Simple, minZoom: -2, maxZoom: 4, zoomSnap: .25 });
-    let overlay = null;
+    let overlay = null; // aktivt baggrundsbillede
+    let currentW = 0, currentH = 0;
+
+    // Faste overlay-lag (kan genbruges pr. kort)
     const layers = {
+      grid: L.layerGroup(),
       cities: L.layerGroup(),
       pois: L.layerGroup(),
       routes: L.layerGroup(),
       secrets: L.layerGroup()
     };
-    L.control.layers(null, {'Byer':layers.cities, 'POI':layers.pois, 'Ruter (forslag)':layers.routes, 'Hemmeligheder':layers.secrets},
-                     {collapsed:false, sortLayers:true}).addTo(map);
+    L.control.layers(null, {
+      'Gitter (10%)': layers.grid,
+      'Byer': layers.cities,
+      'POI': layers.pois,
+      'Ruter (forslag)': layers.routes,
+      'Hemmeligheder': layers.secrets
+    }, { collapsed:false, sortLayers:true }).addTo(map);
+
+    function makeCityFactory(w,h){
+      const P = (xFrac, yFrac) => [h*yFrac, w*xFrac];
+      return (x,y,name,size='town',link='',desc='') => {
+        const r = size==='capital'?9 : size==='city'?7 : 5;
+        const m = L.circleMarker(P(x,y), {radius:r, color:'#e2b714', weight:1, fillColor:'#e2b714', fillOpacity:.9});
+        m.bindTooltip(name, {permanent:true, direction:'top', className:'city-label'});
+        let html = `<b>${name}</b>` + (desc?`<br/>${desc}`:'') + (link?`<br/><a href="${link}">Læs mere</a>`:'');
+        m.bindPopup(html);
+        return m;
+      };
+    }
+
+    function buildGrid(w,h){
+      layers.grid.clearLayers();
+      const lines = [];
+      for(let i=0;i<=10;i++){
+        const x = w*(i/10), y = h*(i/10);
+        // lodret
+        lines.push(L.polyline([[0,x],[h,x]], {color:'#89a', weight:1, opacity:.25, dashArray:'4 6'}));
+        // vandret
+        lines.push(L.polyline([[y,0],[y,w]], {color:'#89a', weight:1, opacity:.25, dashArray:'4 6'}));
+      }
+      lines.forEach(l=>layers.grid.addLayer(l));
+    }
+
+    function toFrac(latlng){ return { x:(latlng.lng/currentW), y:(latlng.lat/currentH) }; }
 
     function loadRegion(key){
-      const conf = MAPS[key];
-      if(!conf) return;
-
+      const conf = MAPS[key]; if(!conf) return;
       const img = new Image();
       img.onload = () => {
-        const w = img.naturalWidth, h = img.naturalHeight;
+        const w = img.naturalWidth, h = img.naturalHeight; currentW = w; currentH = h;
         const bounds = [[0,0],[h,w]];
 
-        // Skift baggrund
         if(overlay) map.removeLayer(overlay);
         overlay = L.imageOverlay(conf.img, bounds).addTo(map);
         map.fitBounds(bounds);
 
-        // procent → pixel helper
-        const P = (x,y) => [h*y, w*x];
-
-        // city helper
-        const makeCity = (x,y,name,size='town',link='',desc='') => {
-          const r = size==='capital'?9 : size==='city'?7 : 5;
-          const m = L.circleMarker(P(x,y), {radius:r, color:'#e2b714', weight:1, fillColor:'#e2b714', fillOpacity:.9});
-          m.bindTooltip(name, {permanent:true, direction:'top', className:'city-label'});
-          m.bindPopup(`<b>${name}</b>${desc?`<br>${desc}`:''}${link?`<br><a href="${link}">Læs mere</a>`:''}`);
-          return m;
-        };
-
-        // Ryd & indsæt features
+        // Ryd lag og indsæt nye features
         Object.values(layers).forEach(g => g.clearLayers());
+        buildGrid(w,h);
+        const P = (xFrac, yFrac) => [h*yFrac, w*xFrac];
+        const makeCity = makeCityFactory(w,h);
         const f = conf.features(w,h,P,makeCity);
         (f.cities||[]).forEach(x=>layers.cities.addLayer(x));
         (f.pois||[]).forEach(x=>layers.pois.addLayer(x));
         (f.routes||[]).forEach(x=>layers.routes.addLayer(x));
         (f.secrets||[]).forEach(x=>layers.secrets.addLayer(x));
 
-        // slå lag til fra start
-        layers.cities.addTo(map);
-        layers.pois.addTo(map);
-        layers.routes.addTo(map);
+        // slå standardlag til
+        layers.cities.addTo(map); layers.pois.addTo(map); layers.routes.addTo(map);
       };
       img.onerror = () => {
-        document.getElementById('map').innerHTML =
-          `<div style="color:#fff;background:#1b2230;padding:12px;border:1px solid #334;max-width:560px;margin:12px">
-             Kunne ikke indlæse kortbilledet: <code>${conf.img}</code>. Tjek at filen findes og stien er korrekt.
-           </div>`;
+        alert('Kunne ikke indlæse kortbilledet: ' + conf.img + '
+Tjek at filen findes og stien er korrekt.');
         console.error('Kortbillede kunne ikke indlæses:', conf.img);
       };
       img.src = conf.img;
     }
 
-    // første load + UI
+    // UI
+    document.getElementById('region').addEventListener('change', (e)=> loadRegion(e.target.value));
+
+    // HUD koordinater + klik for snippet
+    const xv = document.getElementById('xv');
+    const yv = document.getElementById('yv');
+    map.on('mousemove', (e)=>{
+      const f = toFrac(e.latlng); xv.textContent=(f.x*100).toFixed(1)+'%'; yv.textContent=(f.y*100).toFixed(1)+'%';
+    });
+
+    function showSnippet(text){
+      const box = document.getElementById('snippet');
+      document.getElementById('snippetPre').textContent = text;
+      box.style.display='block';
+    }
+    document.getElementById('copySnippet').addEventListener('click', ()=>{
+      const t = document.getElementById('snippetPre').textContent;
+      navigator.clipboard?.writeText(t).catch(()=>{});
+    });
+
+    let editMode = false;
+    document.getElementById('editToggle').addEventListener('change', (e)=>{
+      editMode = e.target.checked;
+    });
+
+    // Grid toggle
+    document.getElementById('gridToggle').addEventListener('click', (e)=>{
+      if(map.hasLayer(layers.grid)){ map.removeLayer(layers.grid); e.target.textContent='Vis gitter'; }
+      else { layers.grid.addTo(map); e.target.textContent='Skjul gitter'; }
+    });
+
+    // Højreklik for at lave en by i editMode
+    map.on('contextmenu', (e)=>{
+      if(!editMode) return;
+      const f = toFrac(e.latlng);
+      const name = prompt('Byens navn?'); if(!name) return;
+      const size = prompt('Størrelse (capital/city/town):','town')||'town';
+      const city = makeCityFactory(currentW,currentH)(f.x, f.y, name, size);
+      layers.cities.addLayer(city);
+      showSnippet(`makeCity(${f.x.toFixed(4)}, ${f.y.toFixed(4)}, '${name}', '${size}', 'link-til-wiki', 'beskrivelse')`);
+    });
+
+    // Klik: kopier P(x,y)
+    map.on('click', (e)=>{
+      if(drawingRoute) { addRoutePoint(e.latlng); return; }
+      if(!editMode) return; // kun i redigér‑tilstand
+      const f = toFrac(e.latlng);
+      const snippet = `P(${f.x.toFixed(4)}, ${f.y.toFixed(4)})`;
+      navigator.clipboard?.writeText(snippet).catch(()=>{});
+      showSnippet(snippet);
+    });
+
+    // Rute‑tegning
+    let drawingRoute = false; let tempLine = null; let routePts = [];
+    function addRoutePoint(latlng){
+      routePts.push(latlng);
+      if(!tempLine){ tempLine = L.polyline(routePts, {color:'#7bd4ff', weight:3, dashArray:'6 6'}).addTo(map); }
+      else { tempLine.setLatLngs(routePts); }
+    }
+    document.getElementById('startRoute').addEventListener('click', ()=>{
+      drawingRoute = true; routePts = []; if(tempLine){ map.removeLayer(tempLine); tempLine=null; }
+      document.getElementById('finishRoute').disabled=false;
+      document.getElementById('cancelRoute').disabled=false;
+    });
+    document.getElementById('finishRoute').addEventListener('click', ()=>{
+      if(!routePts.length) return; drawingRoute=false;
+      const pts = routePts.map(ll=>{ const f=toFrac(ll); return `P(${f.x.toFixed(4)}, ${f.y.toFixed(4)})`; }).join(', ');
+      const code = `L.polyline([${pts}], { color:'#e2b714', weight:3 }).bindPopup('<b>Ny rute</b>')`;
+      showSnippet(code);
+      // Læg ruten på kortet med gul stil
+      const absPts = routePts.map(ll=>ll); L.polyline(absPts, { color:'#e2b714', weight:3 }).addTo(layers.routes);
+      document.getElementById('finishRoute').disabled=true;
+      document.getElementById('cancelRoute').disabled=true;
+      if(tempLine){ map.removeLayer(tempLine); tempLine=null; }
+    });
+    document.getElementById('cancelRoute').addEventListener('click', ()=>{
+      drawingRoute=false; routePts=[]; if(tempLine){ map.removeLayer(tempLine); tempLine=null; }
+      document.getElementById('finishRoute').disabled=true;
+      document.getElementById('cancelRoute').disabled=true;
+    });
+
+    // Første load
     loadRegion('avaris');
-    document.getElementById('region').addEventListener('change', e => loadRegion(e.target.value));
   </script>
 </body>
 </html>
