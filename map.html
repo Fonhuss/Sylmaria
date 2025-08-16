@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sylmaria – Kort (editor‑værktøj)</title>
+  <title>Sylmaria – Kort (editor-værktøj)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -78,7 +78,7 @@
       </select>
     </div>
     <div class="row">
-      <label><input type="checkbox" id="editToggle"> Redigér‑tilstand</label>
+      <label><input type="checkbox" id="editToggle"> Redigér-tilstand</label>
       <button class="btn-sm" id="gridToggle" style="margin-left:auto">Vis gitter</button>
     </div>
     <div class="row">
@@ -93,7 +93,7 @@
       <button class="btn-sm" id="finishRoute" disabled>Afslut</button>
       <button class="btn-sm" id="cancelRoute" disabled>Annuller</button>
     </div>
-    <div class="small">Avaris bruger <code>assets/avaris-map.png</code>. I redigér‑tilstand: 
+    <div class="small">Avaris bruger <code>assets/avaris-map.png</code>. I redigér-tilstand: 
       <ul style="margin:.4em 0 .2em .9em; padding:0">
         <li>Højreklik for at oprette <b>by</b> (etiket).</li>
         <li>Klik på kortet for at <b>kopiere P(x,y)</b> til udklipsholder.</li>
@@ -124,7 +124,7 @@
           ],
           routes: [
             L.polyline([P(.18,.72), P(.26,.66), P(.33,.60), P(.37,.57), P(.41,.55)], { color:'#e2b714', weight:3, opacity:.95 })
-              .bindPopup('<b>Avaris‑passagen</b><br/>Let terræn, god for nybegyndere.'),
+              .bindPopup('<b>Avaris-passagen</b><br/>Let terræn, god for nybegyndere.'),
           ],
           secrets: [
             L.circle(P(.44,.62), {radius: 20, color:'#ff6b6b', weight:2, fillColor:'#ff6b6b', fillOpacity:.25})
@@ -148,7 +148,7 @@
     let calibrating = false, calibPts = [];
     let currentRegion = 'avaris';
 
-    // Måling (klik‑til‑klik)
+    // Måling (klik-til-klik)
     let measureActive = false;
     let measurePts = [];          // LatLng[]
     let measureLine = null;       // L.Polyline
@@ -156,7 +156,7 @@
     let segLabels = [];           // L.Marker[] (etiket ved hvert segment)
     let totalLabel = null;        // L.Marker (samlet længde ved sidste punkt)
 
-    // Rute (klik‑klik‑klik)
+    // Rute (klik-klik-klik)
     let drawingRoute = false; let tempLine = null; let routePts = [];
 
     // Faste overlay-lag (kan genbruges pr. kort)
@@ -242,8 +242,7 @@
         layers.cities.addTo(map); layers.pois.addTo(map); layers.routes.addTo(map);
       };
       img.onerror = () => {
-        alert('Kunne ikke indlæse kortbilledet: ' + conf.img + '
-Tjek at filen findes og stien er korrekt.');
+        alert('Kunne ikke indlæse kortbilledet: ' + conf.img + '\nTjek at filen findes og stien er korrekt.');
         console.error('Kortbillede kunne ikke indlæses:', conf.img);
       };
       img.src = conf.img;
@@ -329,7 +328,7 @@ Tjek at filen findes og stien er korrekt.');
       showSnippet(snippet);
     });
 
-    // ————— MÅLING (klik‑til‑klik) —————
+    // ————— MÅLING (klik-til-klik) —————
     function midpoint(a,b){ return L.latLng((a.lat+b.lat)/2, (a.lng+b.lng)/2); }
 
     function resetMeasure(){
@@ -388,7 +387,7 @@ Tjek at filen findes og stien er korrekt.');
       if(!measureLine){ measureLine = L.polyline(measurePts, {color:'#7bd4ff', weight:3}).addTo(layers.measure); }
       else { measureLine.setLatLngs(measurePts); }
 
-      // segment‑label fra næstsidste til sidste
+      // segment-label fra næstsidste til sidste
       if(measurePts.length>=2){
         const A = measurePts[measurePts.length-2];
         const B = measurePts[measurePts.length-1];
@@ -427,7 +426,7 @@ L.polyline([${fracPts}], { color:'#e2b714', weight:3 })`);
       alert(calibrating ? 'Kalibrering: klik to punkter på den trykte lineal (start og slut), derefter indtast længden i km.' : 'Kalibrering annulleret.');
     });
 
-    // Rute‑tegning (klik‑klik‑klik)
+    // Rute-tegning (klik-klik-klik)
     function addRoutePoint(latlng){
       routePts.push(latlng);
       if(!tempLine){ tempLine = L.polyline(routePts, {color:'#7bd4ff', weight:3, dashArray:'6 6'}).addTo(map); }
