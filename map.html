@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sylmaria – Kort (editor-værktøj)</title>
+  <title>Sylmaria – Kort (editor‑værktøj)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -23,9 +23,10 @@
 
     #map{ height: calc(100dvh - 60px); }
 
-    .panel{ position:absolute; left:12px; top:76px; z-index:500; background:rgba(17,20,27,.92); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px; color:var(--text); backdrop-filter:blur(8px); min-width:280px }
+    /* Panel/legend */
+    .panel{ position:absolute; left:12px; top:76px; z-index:500; background:rgba(17,20,27,.92); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px; color:var(--text); backdrop-filter:blur(8px); min-width:300px }
     .panel h3{ margin:0 0 8px; font-family:Cinzel,serif; font-size:16px }
-    .row{ display:flex; gap:8px; align-items:center; margin-bottom:8px }
+    .row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap }
     label{font-size:12px; color:var(--muted)}
     select, button, input[type="checkbox"]{ accent-color:#e2b714 }
     select{ flex:1; background:#0f131c; color:var(--text); border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:8px }
@@ -39,11 +40,17 @@
     .leaflet-popup-content-wrapper{ background:#0f131c; color:var(--text); border:1px solid rgba(255,255,255,.08) }
     .leaflet-popup-tip{ background:#0f131c }
 
+    /* By-labels */
     .leaflet-tooltip.city-label{background:transparent; border:0; box-shadow:none; color:#ffefb3; font-family:Cinzel,serif; font-weight:700; letter-spacing:.02em; text-shadow:0 1px 2px rgba(0,0,0,.7)}
 
+    /* Måling: label-stil */
+    .measure-label{ background:#0f131c; border:1px solid rgba(255,255,255,.15); padding:2px 6px; border-radius:6px; color:#e6eaf2; font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; box-shadow:0 2px 6px rgba(0,0,0,.35) }
+
+    /* HUD nederst til højre */
     #hud{ position:absolute; right:12px; bottom:12px; z-index:600; background:rgba(17,20,27,.92); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:8px 10px; font-size:12px; color:#cfd6e6 }
     #hud b{ color:#fff }
 
+    /* Snippet felt */
     #snippet{ position:absolute; left:12px; bottom:12px; z-index:600; background:rgba(17,20,27,.96); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:8px 10px; max-width:min(720px, 95vw); color:#cfd6e6; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px }
     #snippet pre{ margin:6px 0 0; white-space:pre-wrap; word-break:break-word }
   </style>
@@ -71,12 +78,14 @@
       </select>
     </div>
     <div class="row">
-      <label><input type="checkbox" id="editToggle"> Redigér-tilstand</label>
+      <label><input type="checkbox" id="editToggle"> Redigér‑tilstand</label>
       <button class="btn-sm" id="gridToggle" style="margin-left:auto">Vis gitter</button>
     </div>
     <div class="row">
       <button class="btn-sm" id="calibrateBtn">Kalibrér målestok</button>
-      <button class="btn-sm" id="measureBtn" style="margin-left:auto">Mål (fri hånd)</button>
+      <button class="btn-sm" id="measureBtn" style="margin-left:auto">Start måling (klik)</button>
+      <button class="btn-sm" id="undoMeasure" disabled>Fortryd punkt</button>
+      <button class="btn-sm" id="clearMeasure" disabled>Ryd måling</button>
     </div>
     <div class="small" id="scaleInfo" style="display:none"></div>
     <div class="row">
@@ -84,11 +93,11 @@
       <button class="btn-sm" id="finishRoute" disabled>Afslut</button>
       <button class="btn-sm" id="cancelRoute" disabled>Annuller</button>
     </div>
-    <div class="small">Avaris bruger <code>assets/avaris-map.png</code>. I redigér-tilstand:
+    <div class="small">Avaris bruger <code>assets/avaris-map.png</code>. I redigér‑tilstand: 
       <ul style="margin:.4em 0 .2em .9em; padding:0">
         <li>Højreklik for at oprette <b>by</b> (etiket).</li>
         <li>Klik på kortet for at <b>kopiere P(x,y)</b> til udklipsholder.</li>
-        <li>“Ny rute”: klik punkter, <i>Afslut</i> for snippet.</li>
+        <li>“Start måling (klik)”: klik punkter langs vejen for præcis længde.</li>
       </ul>
     </div>
   </div>
@@ -101,6 +110,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
+    // --- KONFIG af dine kort ---
     const MAPS = {
       avaris: { title: 'Avaris', img: 'assets/avaris-map.png',
         features: (w,h,P,makeCity) => ({
@@ -109,27 +119,47 @@
             makeCity(.28,.64,'Port Lys','city','','Handelsby ved bugten.'),
             makeCity(.55,.36,'Stormwatch','town','','Grænsepost i bjergene.')
           ],
-          pois: [ L.marker(P(.32,.58)).bindPopup('<b>Fyrtårnet ved Avaris</b>') ],
-          routes: [ L.polyline([P(.18,.72),P(.26,.66),P(.33,.60),P(.37,.57),P(.41,.55)], { color:'#e2b714', weight:3 }).bindPopup('<b>Avaris-passagen</b>') ],
-          secrets: [ L.circle(P(.44,.62), {radius:20, color:'#ff6b6b', weight:2, fillColor:'#ff6b6b', fillOpacity:.25}).bindPopup('<b>Skjult indgang</b>') ]
+          pois: [
+            L.marker(P(.32,.58)).bindPopup('<b>Fyrtårnet ved Avaris</b><br/>Et landemærke ved kysten.')
+          ],
+          routes: [
+            L.polyline([P(.18,.72), P(.26,.66), P(.33,.60), P(.37,.57), P(.41,.55)], { color:'#e2b714', weight:3, opacity:.95 })
+              .bindPopup('<b>Avaris‑passagen</b><br/>Let terræn, god for nybegyndere.'),
+          ],
+          secrets: [
+            L.circle(P(.44,.62), {radius: 20, color:'#ff6b6b', weight:2, fillColor:'#ff6b6b', fillOpacity:.25})
+              .bindPopup('<b>Skjult indgang</b><br/>Kun for indviede.')
+          ]
         })
       },
-      elyria:     { title: 'Elyria',    img: 'assets/elyria.png',     features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
-      nyvarin:    { title: 'Nyvarin',   img: 'assets/nyvarin.png',    features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
-      thandoril:  { title: 'Thandoril', img: 'assets/thandoril.png',  features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
-      valtherion: { title: 'Valtherion',img: 'assets/valtherion.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
+      elyria: { title: 'Elyria', img: 'assets/elyria.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
+      nyvarin: { title: 'Nyvarin', img: 'assets/nyvarin.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
+      thandoril: { title: 'Thandoril', img: 'assets/thandoril.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
+      valtherion: { title: 'Valtherion', img: 'assets/valtherion.png', features: (w,h,P,makeCity)=>({ cities:[], pois:[], routes:[], secrets:[] }) },
     };
 
+    // --- Leaflet init (CRS.Simple) ---
     let map = L.map('map', { crs: L.CRS.Simple, minZoom: -2, maxZoom: 4, zoomSnap: .25 });
-    let overlay = null;
+    let overlay = null; // aktivt baggrundsbillede
     let currentW = 0, currentH = 0;
 
-    // måling/målestok
-    let scalePerRegion = {};
+    // Måling & målestok
+    let scalePerRegion = {}; // fx { avaris: kmPerPx }
     let calibrating = false, calibPts = [];
-    let measureActive = false, measureLine = null, measurePts = [], measuringDown = false;
     let currentRegion = 'avaris';
 
+    // Måling (klik‑til‑klik)
+    let measureActive = false;
+    let measurePts = [];          // LatLng[]
+    let measureLine = null;       // L.Polyline
+    let measurePointDots = [];    // L.CircleMarker[] (prikker ved hvert klik)
+    let segLabels = [];           // L.Marker[] (etiket ved hvert segment)
+    let totalLabel = null;        // L.Marker (samlet længde ved sidste punkt)
+
+    // Rute (klik‑klik‑klik)
+    let drawingRoute = false; let tempLine = null; let routePts = [];
+
+    // Faste overlay-lag (kan genbruges pr. kort)
     const layers = {
       grid: L.layerGroup(),
       measure: L.layerGroup(),
@@ -163,7 +193,9 @@
       const lines = [];
       for(let i=0;i<=10;i++){
         const x = w*(i/10), y = h*(i/10);
+        // lodret
         lines.push(L.polyline([[0,x],[h,x]], {color:'#89a', weight:1, opacity:.25, dashArray:'4 6'}));
+        // vandret
         lines.push(L.polyline([[y,0],[y,w]], {color:'#89a', weight:1, opacity:.25, dashArray:'4 6'}));
       }
       lines.forEach(l=>layers.grid.addLayer(l));
@@ -187,14 +219,15 @@
       img.onload = () => {
         const w = img.naturalWidth, h = img.naturalHeight; currentW = w; currentH = h;
         const bounds = [[0,0],[h,w]];
+
         currentRegion = key;
 
         if(overlay) map.removeLayer(overlay);
         overlay = L.imageOverlay(conf.img, bounds).addTo(map);
         map.fitBounds(bounds);
 
+        // Ryd lag og indsæt nye features
         Object.values(layers).forEach(g => g.clearLayers());
-        layers.measure.clearLayers();
         updateScaleInfo(key);
         buildGrid(w,h);
         const P = (xFrac, yFrac) => [h*yFrac, w*xFrac];
@@ -205,17 +238,21 @@
         (f.routes||[]).forEach(x=>layers.routes.addLayer(x));
         (f.secrets||[]).forEach(x=>layers.secrets.addLayer(x));
 
+        // slå standardlag til
         layers.cities.addTo(map); layers.pois.addTo(map); layers.routes.addTo(map);
       };
       img.onerror = () => {
-        alert('Kunne ikke indlæse kortbilledet: ' + conf.img + '\nTjek at filen findes og stien er korrekt.');
+        alert('Kunne ikke indlæse kortbilledet: ' + conf.img + '
+Tjek at filen findes og stien er korrekt.');
         console.error('Kortbillede kunne ikke indlæses:', conf.img);
       };
       img.src = conf.img;
     }
 
+    // UI
     document.getElementById('region').addEventListener('change', (e)=> loadRegion(e.target.value));
 
+    // HUD koordinater
     const xv = document.getElementById('xv');
     const yv = document.getElementById('yv');
     map.on('mousemove', (e)=>{
@@ -237,11 +274,13 @@
       editMode = e.target.checked;
     });
 
+    // Grid toggle
     document.getElementById('gridToggle').addEventListener('click', (e)=>{
       if(map.hasLayer(layers.grid)){ map.removeLayer(layers.grid); e.target.textContent='Vis gitter'; }
       else { layers.grid.addTo(map); e.target.textContent='Skjul gitter'; }
     });
 
+    // Højreklik for at lave en by i editMode
     map.on('contextmenu', (e)=>{
       if(!editMode) return;
       const f = toFrac(e.latlng);
@@ -252,10 +291,15 @@
       showSnippet(`makeCity(${f.x.toFixed(4)}, ${f.y.toFixed(4)}, '${name}', '${size}', 'link-til-wiki', 'beskrivelse')`);
     });
 
+    // Klik handler (rækkefølge: måling → rute → kalibrering → edit)
     map.on('click', (e)=>{
+      // 1) Måling aktiv? Tilføj punkt
+      if(measureActive){ addMeasurePoint(e.latlng); return; }
+
+      // 2) Rute-tegning?
       if(drawingRoute) { addRoutePoint(e.latlng); return; }
 
-      // Kalibrering
+      // 3) Kalibrering: klik to punkter på linealen, derefter indtast distance i km
       if(calibrating){
         calibPts.push(e.latlng);
         if(calibPts.length === 2){
@@ -264,7 +308,7 @@
           const val = prompt('Hvor langt er linjestykket? (i kilometer, kun tal)', '50');
           const km = parseFloat(val);
           if(!isNaN(km) && km>0){
-            scalePerRegion[currentRegion] = km / px;
+            scalePerRegion[currentRegion] = km / px; // km per pixel
             updateScaleInfo(currentRegion);
             alert('Målestok sat: 1 px ≈ ' + scalePerRegion[currentRegion].toFixed(4) + ' km');
           } else {
@@ -277,6 +321,7 @@
         return;
       }
 
+      // 4) Edit-mode: kopier P(x,y)
       if(!editMode) return;
       const f = toFrac(e.latlng);
       const snippet = `P(${f.x.toFixed(4)}, ${f.y.toFixed(4)})`;
@@ -284,46 +329,105 @@
       showSnippet(snippet);
     });
 
-    // Måleværktøj
+    // ————— MÅLING (klik‑til‑klik) —————
+    function midpoint(a,b){ return L.latLng((a.lat+b.lat)/2, (a.lng+b.lng)/2); }
+
+    function resetMeasure(){
+      layers.measure.clearLayers();
+      measurePts = []; measurePointDots = []; segLabels = [];
+      if(measureLine){ layers.measure.removeLayer(measureLine); measureLine=null; }
+      if(totalLabel){ layers.measure.removeLayer(totalLabel); totalLabel=null; }
+      document.getElementById('lenv').textContent = '–';
+      document.getElementById('undoMeasure').disabled = true;
+      document.getElementById('clearMeasure').disabled = true;
+    }
+
+    function startMeasure(){
+      measureActive = true;
+      document.getElementById('measureBtn').textContent = 'Stop måling';
+      map.dragging.disable(); map.doubleClickZoom.disable(); map.boxZoom.disable(); map.keyboard.disable();
+      map.getContainer().style.cursor = 'crosshair';
+      resetMeasure();
+    }
+    function stopMeasure(){
+      measureActive = false;
+      document.getElementById('measureBtn').textContent = 'Start måling (klik)';
+      map.dragging.enable(); map.doubleClickZoom.enable(); map.boxZoom.enable(); map.keyboard.enable();
+      map.getContainer().style.cursor = '';
+    }
+
+    document.getElementById('measureBtn').addEventListener('click', ()=>{
+      if(measureActive) stopMeasure(); else startMeasure();
+    });
+    document.getElementById('clearMeasure').addEventListener('click', resetMeasure);
+    document.getElementById('undoMeasure').addEventListener('click', ()=>{
+      if(measurePts.length===0) return;
+      // fjern sidste punkt + evt label
+      const lastDot = measurePointDots.pop(); if(lastDot){ layers.measure.removeLayer(lastDot); }
+      const lastPt = measurePts.pop();
+      if(segLabels.length){ const lab = segLabels.pop(); layers.measure.removeLayer(lab); }
+      if(measurePts.length>=1){
+        measureLine.setLatLngs(measurePts);
+        updateMeasureTotals();
+      } else {
+        if(measureLine){ layers.measure.removeLayer(measureLine); measureLine=null; }
+        if(totalLabel){ layers.measure.removeLayer(totalLabel); totalLabel=null; }
+        document.getElementById('lenv').textContent = '–';
+      }
+      document.getElementById('undoMeasure').disabled = measurePts.length===0;
+      document.getElementById('clearMeasure').disabled = measurePts.length===0;
+    });
+
+    function addMeasurePoint(latlng){
+      // prik på punktet
+      const dot = L.circleMarker(latlng, {radius:3.5, color:'#7bd4ff', weight:0, fillColor:'#7bd4ff', fillOpacity:.95});
+      dot.addTo(layers.measure);
+      measurePointDots.push(dot);
+
+      measurePts.push(latlng);
+      if(!measureLine){ measureLine = L.polyline(measurePts, {color:'#7bd4ff', weight:3}).addTo(layers.measure); }
+      else { measureLine.setLatLngs(measurePts); }
+
+      // segment‑label fra næstsidste til sidste
+      if(measurePts.length>=2){
+        const A = measurePts[measurePts.length-2];
+        const B = measurePts[measurePts.length-1];
+        const segPx = pxDistance(A,B);
+        const segStr = formatDistance(segPx, currentRegion);
+        const lab = L.marker(midpoint(A,B), { icon: L.divIcon({className:'measure-label', html: segStr}) });
+        lab.addTo(layers.measure); segLabels.push(lab);
+      }
+
+      updateMeasureTotals();
+      document.getElementById('undoMeasure').disabled = measurePts.length===0;
+      document.getElementById('clearMeasure').disabled = measurePts.length===0;
+    }
+
+    function updateMeasureTotals(){
+      const pxLen = polylinePxLength(measurePts);
+      const distStr = formatDistance(pxLen, currentRegion);
+      document.getElementById('lenv').textContent = distStr;
+      if(totalLabel){ layers.measure.removeLayer(totalLabel); totalLabel=null; }
+      if(measurePts.length){
+        const last = measurePts[measurePts.length-1];
+        totalLabel = L.marker(last, { icon: L.divIcon({ className:'measure-label', html: 'Total: ' + distStr, iconAnchor:[0,-6] }) });
+        totalLabel.addTo(layers.measure);
+      }
+      // giv snippet så man kan gemme som rute
+      if(measurePts.length>=2){
+        const fracPts = measurePts.map(ll=>{ const f=toFrac(ll); return `P(${f.x.toFixed(4)}, ${f.y.toFixed(4)})`; }).join(', ');
+        showSnippet(`// Måling (${currentRegion}): ${distStr}
+L.polyline([${fracPts}], { color:'#e2b714', weight:3 })`);
+      }
+    }
+
+    // Kalibrering
     document.getElementById('calibrateBtn').addEventListener('click', ()=>{
       calibrating = !calibrating; calibPts = [];
       alert(calibrating ? 'Kalibrering: klik to punkter på den trykte lineal (start og slut), derefter indtast længden i km.' : 'Kalibrering annulleret.');
     });
-    document.getElementById('measureBtn').addEventListener('click', ()=>{
-      measureActive = !measureActive;
-      document.getElementById('measureBtn').textContent = measureActive ? 'Stop måling' : 'Mål (fri hånd)';
-      if(!measureActive){ measuringDown=false; measurePts=[]; if(measureLine){ layers.measure.removeLayer(measureLine); measureLine=null; }
-        document.getElementById('lenv').textContent = '–'; }
-    });
-    map.on('mousedown', (e)=>{
-      if(!measureActive) return; measuringDown = true; measurePts=[e.latlng];
-      if(measureLine){ layers.measure.removeLayer(measureLine); measureLine=null; }
-      measureLine = L.polyline(measurePts, {color:'#7bd4ff', weight:3, dashArray:'6 6'}).addTo(layers.measure);
-    });
-    map.on('mouseup', ()=>{
-      if(!measureActive || !measuringDown) return; measuringDown=false;
-      const pxLen = polylinePxLength(measurePts);
-      const distStr = formatDistance(pxLen, currentRegion);
-      const fracPts = measurePts.map(ll=>{ const f=toFrac(ll); return `P(${f.x.toFixed(4)}, ${f.y.toFixed(4)})`; }).join(', ');
-      showSnippet(`// Måling (${currentRegion}): ${distStr}\nL.polyline([${fracPts}], { color:'#e2b714', weight:3 })`);
-      if(confirm('Længde: ' + distStr + '\nGem som rute?')){
-        L.polyline(measurePts, { color:'#e2b714', weight:3 }).addTo(layers.routes);
-      }
-    });
-    map.on('mousemove', (e)=>{
-      if(!measureActive || !measuringDown) return;
-      const last = measurePts[measurePts.length-1];
-      const pa = map.latLngToLayerPoint(last), pb = map.latLngToLayerPoint(e.latlng);
-      if(Math.hypot(pa.x-pb.x, pa.y-pb.y) > 6){
-        measurePts.push(e.latlng);
-        measureLine.setLatLngs(measurePts);
-        const pxLen = polylinePxLength(measurePts);
-        document.getElementById('lenv').textContent = formatDistance(pxLen, currentRegion);
-      }
-    });
 
-    // Rute-tegning (klik-klik-klik)
-    let drawingRoute = false; let tempLine = null; let routePts = [];
+    // Rute‑tegning (klik‑klik‑klik)
     function addRoutePoint(latlng){
       routePts.push(latlng);
       if(!tempLine){ tempLine = L.polyline(routePts, {color:'#7bd4ff', weight:3, dashArray:'6 6'}).addTo(map); }
@@ -350,6 +454,7 @@
       document.getElementById('cancelRoute').disabled=true;
     });
 
+    // Første load
     loadRegion('avaris');
   </script>
 </body>
