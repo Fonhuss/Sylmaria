@@ -37,6 +37,8 @@
     .leaflet-control-layers-expanded{ background:rgba(17,20,27,.92); color:var(--text); border-color:rgba(255,255,255,.08) }
     .leaflet-popup-content-wrapper{ background:#0f131c; color:var(--text); border:1px solid rgba(255,255,255,.08) }
     .leaflet-popup-tip{ background:#0f131c }
+      /* Byenavne (etiketter) */
+    .leaflet-tooltip.city-label{background:transparent; border:0; box-shadow:none; color:#ffefb3; font-family:Cinzel,serif; font-weight:700; letter-spacing:.02em; text-shadow:0 1px 2px rgba(0,0,0,.7)}
   </style>
 </head>
 <body>
@@ -69,7 +71,21 @@
     // --- KONFIG af dine kort ---
     const MAPS = {
       avaris: { title: 'Avaris', img: 'assets/avaris-map.png',
-        features: (w,h,P) => ({
+        features: (w,h,P) => { 
+          const makeCity = (x,y,name,size='town',link='',desc='') => {
+            const r = size==='capital'?9 : size==='city'?7 : 5;
+            const m = L.circleMarker(P(x,y), {radius:r, color:'#e2b714', weight:1, fillColor:'#e2b714', fillOpacity:.9});
+            m.bindTooltip(name, {permanent:true, direction:'top', className:'city-label'});
+            let html = `<b>${name}</b>` + (desc?`<br/>${desc}`:'') + (link?`<br/><a href="${link}">Læs mere</a>`:'');
+            m.bindPopup(html);
+            return m;
+          };
+          return {
+          cities: [
+            makeCity(.40,.58,'Avaris','capital','kontinenter/avaris.html#avaris','Hovedstad.'),
+            makeCity(.28,.64,'Port Lys','city','','Handelsby ved bugten.'),
+            makeCity(.55,.36,'Stormwatch','town','','Grænsepost i bjergene.')
+          ],
           pois: [
             L.marker(P(.32,.58)).bindPopup('<b>Fyrtårnet ved Avaris</b><br/>Et landemærke ved kysten.'),
             L.marker(P(.62,.34)).bindPopup('<b>Bjergpasset</b><br/>Smalt og farligt i dårligt vejr.')
@@ -84,7 +100,7 @@
             L.circle(P(.44,.62), {radius:20, color:'#ff6b6b', weight:2, fillColor:'#ff6b6b', fillOpacity:.25})
               .bindPopup('<b>Skjult indgang</b><br/>Kun for indviede.')
           ]
-        })
+        };
       },
       elyria: { title: 'Elyria', img: 'assets/elyria.png', features: (w,h,P)=>({ pois:[], routes:[], secrets:[] }) },
       nyvarin: { title: 'Nyvarin', img: 'assets/nyvarin.png', features: (w,h,P)=>({ pois:[], routes:[], secrets:[] }) },
@@ -98,11 +114,17 @@
 
     // Faste overlay-lag (kan genbruges pr. kort)
     const layers = {
+      cities: L.layerGroup(),
       pois: L.layerGroup(),
       routes: L.layerGroup(),
       secrets: L.layerGroup()
     };
     L.control.layers(null, {
+      'Byer': layers.cities,
+      'POI': layers.pois,
+      'Ruter (forslag)': layers.routes,
+      'Hemmeligheder': layers.secrets
+    }, { collapsed:false, sortLayers:true }).addTo(map)(null, {
       'POI': layers.pois,
       'Ruter (forslag)': layers.routes,
       'Hemmeligheder': layers.secrets
@@ -130,10 +152,10 @@
         f.pois.forEach(m => layers.pois.addLayer(m));
         f.routes.forEach(r => layers.routes.addLayer(r));
         f.secrets.forEach(s => layers.secrets.addLayer(s));
+        if (f.cities) f.cities.forEach(c => layers.cities.addLayer(c));
 
         // Slå visse lag til som default
-        layers.pois.addTo(map);
-        layers.routes.addTo(map);
+        layers.pois.addTo(map); layers.routes.addTo(map); layers.cities.addTo(map);
 
         // Klik‑highlight på ruter
         layers.routes.eachLayer(pl => {
