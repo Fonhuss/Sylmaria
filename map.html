@@ -109,7 +109,7 @@
       avaris: { title: 'Avaris', img: 'assets/avaris-map.png',
         features: (w,h,P,makeCity) => ({
           cities: [
-            makeCity(.444,.53,'Avaris','capital','kontinenter/avaris.html#avaris','Hovedstad.'),
+            makeCity(.444,.53,'Elyndor','capital','kontinenter/avaris.html#avaris','Hovedstad.'),
             makeCity(.28,.64,'Port Lys','city','','Handelsby ved bugten.'),
             makeCity(.55,.36,'Stormwatch','town','','Grænsepost i bjergene.')
           ],
@@ -133,7 +133,7 @@
     };
 
     // --- Leaflet init (CRS.Simple) ---
-    let map = L.map('map', { crs: L.CRS.Simple, minZoom: -2, maxZoom: 4, zoomSnap: .25 });
+    let map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 4, zoomSnap: .25 });
     let overlay = null; // aktivt baggrundsbillede
     let currentW = 0, currentH = 0;
 
