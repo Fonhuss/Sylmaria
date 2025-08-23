@@ -144,9 +144,9 @@
 
     function labelize(key){
       const map = {
-        culture:'Kultur', faith:'Tro', beliefs:'Overbevisninger', cultures:'Kulturer', dwarves:'Dværge', halflings:'Halvinger', gnomes:'Gnomer',
-        half_elves:'Halvelvere', half_orcs:'Halvorcer', duty:'Pligt', themes:'Temaer', note:'Note', world:'Verden', questions:'Spørgsmål', theme:'Tema', purpose:'Formål',
-        shadow_elves:'Skyggeelvere'
+        culture:'Cultures', faith:'Faith', beliefs:'Beliefs', cultures:'Cultures', dwarves:'Dwarves', halflings:'Halflings', gnomes:'Gnomes',
+        half_elves:'Half Elves', half_orcs:'Half Orcs', duty:'Duty', themes:'Themes', note:'Note', world:'World', questions:'Questions', theme:'Theme', purpose:'Purpose',
+        shadow_elves:'Shadow Elves'
       };
       return map[key] || key.replace(/_/g,' ').replace(/\b\w/g, m=>m.toUpperCase());
     }
